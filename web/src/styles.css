@@ -54,6 +54,13 @@ a {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
+.login {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -107,6 +114,15 @@ a {
   background: #f1f3f5;
   font-size: 12px;
   color: #344051;
+}
+
+.error {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #c0342e;
+  border: 1px solid #f0c6c4;
 }
 
 .totals {

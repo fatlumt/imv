@@ -18,6 +18,7 @@ A lightweight Express-based API to modernize the existing invoices system while 
 - `GET /health` — health check.
 - `POST /api/login` — authenticate with `email` and `password`, returns JWT.
 - `GET /api/invoices` — list invoices (requires `Authorization: Bearer <token>`). Query params: `search`, `from`, `to`, `paid`.
+- `GET /api/invoices/export` — CSV export matching current columns, honors same filters as the list endpoint (supports `token` query param when headers aren't available for downloads).
 - `POST /api/invoices` — create invoice with `invoice_number`, `customer_name`, `invoice_date`, optional `project_name`, `total`, `paid`.
 - `PUT /api/invoices/:id` — update invoice fields.
 

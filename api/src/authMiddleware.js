@@ -4,7 +4,8 @@ const { JWT_SECRET = '' } = process.env
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null
+  const tokenParam = req.query.token
+  const token = header.startsWith('Bearer ') ? header.slice(7) : tokenParam
 
   if (!token) {
     return res.status(401).json({ message: 'Missing authorization token' })

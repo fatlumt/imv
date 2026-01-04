@@ -39,6 +39,60 @@ export const invoiceRouter = (router) => {
     }
   })
 
+  router.get('/invoices/export', requireAuth, async (req, res) => {
+    const { search = '', from, to, paid } = req.query
+    const clauses = []
+    const params = []
+
+    if (search) {
+      clauses.push('(customer_name LIKE ? OR invoice_number LIKE ? OR project_name LIKE ?)')
+      const term = `%${search}%`
+      params.push(term, term, term)
+    }
+
+    if (from) {
+      clauses.push('invoice_date >= ?')
+      params.push(from)
+    }
+
+    if (to) {
+      clauses.push('invoice_date <= ?')
+      params.push(to)
+    }
+
+    if (paid !== undefined) {
+      clauses.push('paid = ?')
+      params.push(paid === 'true' ? 1 : 0)
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const sql = `SELECT invoice_number, customer_name, project_name, invoice_date, total, paid FROM invoices ${where} ORDER BY invoice_date DESC LIMIT 2000`
+
+    try {
+      const [rows] = await pool.execute(sql, params)
+      const headers = ['invoice_number', 'customer_name', 'project_name', 'invoice_date', 'total', 'paid']
+      const csvRows = [headers.join(',')]
+
+      rows.forEach((row) => {
+        const values = headers.map((key) => {
+          const value = row[key]
+          if (typeof value === 'string') {
+            return `"${value.replace(/"/g, '""')}"`
+          }
+          return value
+        })
+
+        csvRows.push(values.join(','))
+      })
+
+      res.setHeader('Content-Type', 'text/csv')
+      res.setHeader('Content-Disposition', 'attachment; filename="invoices.csv"')
+      return res.status(200).send(csvRows.join('\n'))
+    } catch (error) {
+      return res.status(500).json({ message: 'Failed to export invoices', error: error.message })
+    }
+  })
+
   router.post('/invoices', requireAuth, async (req, res) => {
     const { invoice_number, customer_name, project_name, invoice_date, total = 0, paid = false } = req.body
 

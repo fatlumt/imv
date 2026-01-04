@@ -15,4 +15,5 @@ export interface InvoiceFilters {
   status: InvoiceStatus | '';
   fromDate: string;
   toDate: string;
+  sort?: string;
 }
