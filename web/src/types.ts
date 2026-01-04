@@ -17,3 +17,15 @@ export interface InvoiceFilters {
   toDate: string;
   sort?: string;
 }
+
+export interface InvoiceListResponse {
+  items: Invoice[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totals: {
+    vat: number;
+    paid: number;
+    open: number;
+  };
+}

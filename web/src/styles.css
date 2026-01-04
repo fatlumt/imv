@@ -87,9 +87,26 @@ a {
   background-color: #1d3557;
 }
 
+.button.secondary:disabled {
+  opacity: 0.7;
+}
+
 .button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #1d3557;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.link-button.danger {
+  color: #e63946;
 }
 
 .table {
@@ -103,6 +120,12 @@ a {
   padding: 10px 8px;
   border-bottom: 1px solid #e5e5e5;
   font-size: 14px;
+}
+
+.row-actions {
+  display: inline-flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .badge {
@@ -140,6 +163,19 @@ a {
 
 .total-card h3 {
   margin: 0 0 4px 0;
+}
+
+.pagination {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+
+.page-indicator {
+  color: #5f6a78;
+  font-size: 13px;
 }
 
 @media (max-width: 600px) {

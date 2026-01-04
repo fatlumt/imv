@@ -3,7 +3,10 @@ import { requireAuth } from '../authMiddleware.js'
 
 export const invoiceRouter = (router) => {
   router.get('/invoices', requireAuth, async (req, res) => {
-    const { search = '', from, to, paid } = req.query
+    const { search = '', from, to, paid, page = 1, pageSize = 20, sort = 'date_desc' } = req.query
+    const currentPage = Math.max(parseInt(page, 10) || 1, 1)
+    const size = Math.min(Math.max(parseInt(pageSize, 10) || 20, 1), 100)
+    const offset = (currentPage - 1) * size
     const clauses = []
     const params = []
 
@@ -29,18 +32,48 @@ export const invoiceRouter = (router) => {
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
-    const sql = `SELECT id, invoice_number, customer_name, project_name, invoice_date, total, paid FROM invoices ${where} ORDER BY invoice_date DESC LIMIT 200`
+
+    const sortClause = (() => {
+      switch (sort) {
+        case 'date_asc':
+          return 'ORDER BY invoice_date ASC'
+        case 'amount_desc':
+          return 'ORDER BY total DESC'
+        case 'amount_asc':
+          return 'ORDER BY total ASC'
+        case 'date_desc':
+        default:
+          return 'ORDER BY invoice_date DESC'
+      }
+    })()
+
+    const baseQuery = `FROM invoices ${where}`
+    const dataSql = `SELECT id, invoice_number, customer_name, project_name, invoice_date, total, paid, (total * 0.19) AS vat ${baseQuery} ${sortClause} LIMIT ? OFFSET ?`
+    const countSql = `SELECT COUNT(*) as totalCount, SUM(total) as totalAmount, SUM(total * 0.19) as vatAmount, SUM(CASE WHEN paid = 1 THEN total ELSE 0 END) as paidAmount ${baseQuery}`
 
     try {
-      const [rows] = await pool.execute(sql, params)
-      return res.json(rows)
+      const [rows] = await pool.execute(dataSql, [...params, size, offset])
+      const [aggregate] = await pool.execute(countSql, params)
+      const { totalCount = 0, totalAmount = 0, vatAmount = 0, paidAmount = 0 } = aggregate[0] || {}
+
+      return res.json({
+        items: rows,
+        page: currentPage,
+        pageSize: size,
+        totalCount,
+        totals: {
+          vat: Number(vatAmount) || 0,
+          paid: Number(paidAmount) || 0,
+          open: Number(totalAmount || 0) - Number(paidAmount || 0)
+        }
+      })
     } catch (error) {
       return res.status(500).json({ message: 'Failed to load invoices', error: error.message })
     }
   })
 
   router.get('/invoices/export', requireAuth, async (req, res) => {
-    const { search = '', from, to, paid } = req.query
+    const { search = '', from, to, paid, sort = 'date_desc' } = req.query
     const clauses = []
     const params = []
 
@@ -66,7 +99,21 @@ export const invoiceRouter = (router) => {
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
-    const sql = `SELECT invoice_number, customer_name, project_name, invoice_date, total, paid FROM invoices ${where} ORDER BY invoice_date DESC LIMIT 2000`
+    const sortClause = (() => {
+      switch (sort) {
+        case 'date_asc':
+          return 'ORDER BY invoice_date ASC'
+        case 'amount_desc':
+          return 'ORDER BY total DESC'
+        case 'amount_asc':
+          return 'ORDER BY total ASC'
+        case 'date_desc':
+        default:
+          return 'ORDER BY invoice_date DESC'
+      }
+    })()
+
+    const sql = `SELECT invoice_number, customer_name, project_name, invoice_date, total, paid FROM invoices ${where} ${sortClause} LIMIT 2000`
 
     try {
       const [rows] = await pool.execute(sql, params)
@@ -90,6 +137,22 @@ export const invoiceRouter = (router) => {
       return res.status(200).send(csvRows.join('\n'))
     } catch (error) {
       return res.status(500).json({ message: 'Failed to export invoices', error: error.message })
+    }
+  })
+
+  router.delete('/invoices/:id', requireAuth, async (req, res) => {
+    const { id } = req.params
+
+    try {
+      const [existing] = await pool.execute('SELECT id FROM invoices WHERE id = ? LIMIT 1', [id])
+      if (!existing.length) {
+        return res.status(404).json({ message: 'Invoice not found' })
+      }
+
+      await pool.execute('DELETE FROM invoices WHERE id = ?', [id])
+      return res.status(204).send()
+    } catch (error) {
+      return res.status(500).json({ message: 'Failed to delete invoice', error: error.message })
     }
   })
 

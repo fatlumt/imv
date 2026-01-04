@@ -1,4 +1,4 @@
-# IMV Web Frontend (Step 4)
+# IMV Web Frontend (Step 6)
 
 Responsive React + Vite scaffold that mirrors the existing PHP dashboard filters, exports, and totals while we wire it to the new Node API.
 
@@ -20,11 +20,11 @@ Responsive React + Vite scaffold that mirrors the existing PHP dashboard filters
 ## Feature parity checklist
 - Search, status, date-from, date-to, and sort options rendered as first-class controls.
 - Export button calls `/api/invoices/export` with the same CSV shape.
-- VAT, paid, and open totals displayed; table ready for pagination/inline actions.
+- VAT, paid, and open totals displayed from API aggregates (falls back to mock calculations).
+- Pagination buttons mirror API paging; inline actions include delete (edit placeholder kept for parity).
 - Mobile-friendly grid/layout so options stay visible at small breakpoints.
 
 ## Next wiring tasks
-- Add pagination parameters to match current defaults and keep label names unchanged.
 - Move "New Invoice" into a routed form that reuses existing field labels/helpers.
 - Introduce global auth/tenant context shared with the Node API JWT flow.
-- Wire in create/update/delete flows against the Node endpoints while keeping existing labels.
+- Wire in create/update flows against the Node endpoints while keeping existing labels.

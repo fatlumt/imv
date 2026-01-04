@@ -16,6 +16,20 @@ export const matchesFilters = (invoice: Invoice, filters: InvoiceFilters) => {
   return matchesSearch && matchesStatus && fromOk && toOk;
 };
 
+export const summarizeInvoices = (list: Invoice[]) =>
+  list.reduce(
+    (acc, inv) => {
+      acc.vat += inv.vat;
+      if (inv.status === 'paid') {
+        acc.paid += inv.total;
+      } else {
+        acc.open += inv.total;
+      }
+      return acc;
+    },
+    { vat: 0, paid: 0, open: 0 }
+  );
+
 export const mockInvoices: Invoice[] = [
   {
     id: '1',
