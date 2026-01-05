@@ -1,0 +1,9 @@
+{
+  "name": "IMV Dashboard",
+  "short_name": "IMV",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e63946",
+  "icons": []
+}
