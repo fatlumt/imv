@@ -102,6 +102,32 @@ export async function deleteInvoice(token: string, id: string) {
   }
 }
 
+export async function getInvoice(token: string, id: string): Promise<Invoice> {
+  const res = await fetch(`${baseUrl}/api/invoices/${encodeURIComponent(id)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  if (!res.ok) {
+    const message = await res.text()
+    throw new Error(message || 'Failed to load invoice')
+  }
+
+  const invoice = await res.json()
+
+  return {
+    id: String(invoice.id ?? ''),
+    number: invoice.invoice_number,
+    client: invoice.customer_name,
+    project: invoice.project_name,
+    date: invoice.invoice_date,
+    status: invoice.paid ? 'paid' : 'unpaid',
+    total: Number(invoice.total) || 0,
+    vat: Number(invoice.vat) || Number(invoice.total) * 0.19
+  }
+}
+
 function toPayload(invoice: Partial<Invoice>) {
   return {
     invoice_number: invoice.number,

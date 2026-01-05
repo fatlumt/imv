@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, Route, Routes, useNavigate, useParams, BrowserRouter } from 'react-router-dom'
-import { createInvoice, deleteInvoice, exportInvoicesUrl, fetchInvoices, updateInvoice } from './api'
+import { createInvoice, deleteInvoice, exportInvoicesUrl, fetchInvoices, getInvoice, updateInvoice } from './api'
 import { AuthProvider, useAuth } from './auth'
 import { InvoiceForm, type InvoiceFormValues } from './components/InvoiceForm'
 import { formatCurrency, matchesFilters, mockInvoices, summarizeInvoices } from './invoiceUtils'
@@ -32,6 +32,15 @@ function AppShell() {
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices)
   const [totals, setTotals] = useState(summarizeInvoices(mockInvoices))
   const [loading, setLoading] = useState(false)
+
+  const updateInvoicesWithTotals = useCallback((updater: (current: Invoice[]) => Invoice[]) => {
+    setInvoices((current) => {
+      const next = updater(current)
+      setTotals(summarizeInvoices(next))
+      setTotalCount(next.length)
+      return next
+    })
+  }, [])
 
   const loadInvoices = useCallback(async () => {
     if (!token) {
@@ -124,8 +133,8 @@ function AppShell() {
     const preparedInvoice: Invoice = {
       id: editingId || '',
       number: values.number || editingId || `INV-${Date.now()}`,
-      client: values.client,
-      project: values.project,
+      client: values.client.trim(),
+      project: values.project.trim(),
       date: values.date,
       status: values.status,
       total: Number(values.total) || 0,
@@ -133,7 +142,7 @@ function AppShell() {
     }
 
     if (!token) {
-      setInvoices((current) => {
+      updateInvoicesWithTotals((current) => {
         const nextList = editingId
           ? current.map((inv) => (inv.id === editingId ? { ...inv, ...preparedInvoice } : inv))
           : [
@@ -143,8 +152,6 @@ function AppShell() {
               },
               ...current,
             ]
-        setTotals(summarizeInvoices(nextList))
-        setTotalCount(nextList.length)
         setPage(1)
         return nextList
       })
@@ -152,17 +159,30 @@ function AppShell() {
       return
     }
 
+    const previousList = invoices
+    const optimisticId = editingId || `temp-${Date.now()}`
+    const optimisticInvoice = { ...preparedInvoice, id: optimisticId }
+
+    updateInvoicesWithTotals((current) => {
+      const nextList = editingId
+        ? current.map((inv) => (inv.id === editingId ? { ...inv, ...optimisticInvoice } : inv))
+        : [optimisticInvoice, ...current]
+      setPage(1)
+      return nextList
+    })
+
     setLoading(true)
     try {
-      if (editingId) {
-        await updateInvoice(token, editingId, preparedInvoice)
-      } else {
-        await createInvoice(token, preparedInvoice)
-      }
+      const saved = editingId
+        ? await updateInvoice(token, editingId, preparedInvoice)
+        : await createInvoice(token, preparedInvoice)
+
+      updateInvoicesWithTotals((current) => current.map((inv) => (inv.id === optimisticId ? saved : inv)))
       await loadInvoices()
       navigate('/')
     } catch (err: any) {
       setError(err?.message || 'Unable to save invoice')
+      updateInvoicesWithTotals(() => previousList)
     } finally {
       setLoading(false)
     }
@@ -193,7 +213,7 @@ function AppShell() {
     <div className="app-shell">
       <header className="header">
         <div>
-          <p className="badge">Step 8 · Routed forms & auth context</p>
+          <p className="badge">Step 9 · Validation & optimistic saves</p>
           <h1>Invoices Dashboard</h1>
           <p style={{ margin: 0, color: '#5f6a78' }}>
             Responsive SPA preserving current filters, exports, and labels across desktop/mobile.
@@ -316,6 +336,34 @@ function InvoiceFormRoute({ heading, invoices, onSave, loading }: {
   const { id } = useParams()
   const navigate = useNavigate()
   const existing = invoices.find((inv) => inv.id === id)
+  const { token } = useAuth()
+  const [remoteInvoice, setRemoteInvoice] = useState<Invoice | undefined>(existing)
+  const [fetching, setFetching] = useState(false)
+  const [fetchError, setFetchError] = useState('')
+
+  useEffect(() => {
+    setRemoteInvoice(existing)
+  }, [existing])
+
+  useEffect(() => {
+    const loadInvoice = async () => {
+      if (!id || existing || !token) return
+      setFetching(true)
+      setFetchError('')
+      try {
+        const record = await getInvoice(token, id)
+        setRemoteInvoice(record)
+      } catch (err: any) {
+        setFetchError(err?.message || 'Unable to load invoice')
+      } finally {
+        setFetching(false)
+      }
+    }
+
+    void loadInvoice()
+  }, [existing, id, token])
+
+  const currentInvoice = remoteInvoice || existing
 
   return (
     <section className="card" aria-label="Invoice form">
@@ -325,16 +373,22 @@ function InvoiceFormRoute({ heading, invoices, onSave, loading }: {
         </Link>
         <span className="badge">Routed form preserves existing labels</span>
       </div>
-      {id && !existing && (
+      {fetching && <div className="badge">Loading invoice...</div>}
+      {fetchError && (
+        <div className="error" role="alert" style={{ marginTop: 12 }}>
+          {fetchError}
+        </div>
+      )}
+      {id && !currentInvoice && !fetching && (
         <div className="error" role="alert" style={{ marginTop: 12 }}>
           Invoice not found in the current list
         </div>
       )}
       <InvoiceForm
         heading={heading}
-        initialValues={existing || undefined}
+        initialValues={currentInvoice || undefined}
         loading={loading}
-        onSubmit={async (values) => onSave(values, existing?.id)}
+        onSubmit={async (values) => onSave(values, currentInvoice?.id)}
         onCancel={() => navigate('/')}
       />
     </section>

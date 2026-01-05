@@ -144,6 +144,23 @@ a {
   gap: 12px;
 }
 
+.field-error {
+  display: block;
+  color: #b42318;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-error-summary {
+  margin-top: 4px;
+  background: #fff2f0;
+  color: #b42318;
+  border: 1px solid #f5c2c7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;
